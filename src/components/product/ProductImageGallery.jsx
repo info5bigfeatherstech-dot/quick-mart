@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Maximize2, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   Carousel,
@@ -20,14 +20,29 @@ const FALLBACK_IMAGE =
 
 /**
  * ProductImageGallery:
- * Desktop: Vertical thumbnails + Main image with cursor-follow CSS zoom + Fullscreen preview dialog
- * Mobile: Swipeable shadcn Carousel with dot indicators
+ * Desktop:
+ *  - Main product image with cursor-following magnifier lens.
+ *  - High-res zoomed preview window appearing on the right over the product column on hover.
+ *  - Horizontal thumbnail carousel below the main image with next/prev scroll arrows.
+ * Mobile:
+ *  - Swipeable shadcn Carousel with dot indicators and fullscreen zoom dialog.
  */
 const ProductImageGallery = ({ images = [], alt = 'Product Image' }) => {
   const safeImages = images && images.length > 0 ? images : [FALLBACK_IMAGE];
   const [activeIndex, setActiveIndex] = useState(0);
-  const [isZoomed, setIsZoomed] = useState(false);
-  const [zoomOrigin, setZoomOrigin] = useState({ x: 50, y: 50 });
+
+  // Hover zoom lens state
+  const containerRef = useRef(null);
+  const thumbnailsRef = useRef(null);
+  const [isHovered, setIsHovered] = useState(false);
+  const [lensPos, setLensPos] = useState({ x: 0, y: 0, width: 0, height: 0 });
+  const [zoomPercent, setZoomPercent] = useState({ x: 50, y: 50 });
+
+  // Thumbnail scrolling state
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  // Fullscreen preview dialog state
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewIndex, setPreviewIndex] = useState(0);
   const [carouselApi, setCarouselApi] = useState(null);
@@ -42,85 +57,104 @@ const ProductImageGallery = ({ images = [], alt = 'Product Image' }) => {
     });
   }, [carouselApi]);
 
-  // When activeIndex changes (e.g. from thumbnail click), update carousel if on mobile
+  // When activeIndex changes (e.g. from thumbnail click), update mobile carousel
   useEffect(() => {
     if (carouselApi && carouselApi.selectedScrollSnap() !== activeIndex) {
       carouselApi.scrollTo(activeIndex);
     }
   }, [activeIndex, carouselApi]);
 
-  // Desktop hover zoom handler
+  // Check thumbnail scroll overflow for left/right arrow buttons
+  const checkScroll = () => {
+    if (thumbnailsRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = thumbnailsRef.current;
+      setCanScrollLeft(scrollLeft > 4);
+      setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 4);
+    }
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(checkScroll, 100);
+    const el = thumbnailsRef.current;
+    if (el) {
+      el.addEventListener('scroll', checkScroll);
+      window.addEventListener('resize', checkScroll);
+      return () => {
+        clearTimeout(timer);
+        el.removeEventListener('scroll', checkScroll);
+        window.removeEventListener('resize', checkScroll);
+      };
+    }
+    return () => clearTimeout(timer);
+  }, [safeImages]);
+
+  const scrollThumbnails = (direction) => {
+    if (thumbnailsRef.current) {
+      const scrollAmount = direction === 'left' ? -160 : 160;
+      thumbnailsRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
+
+  // Magnifier lens mouse movement calculation
   const handleMouseMove = (e) => {
-    const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
-    const x = Math.max(0, Math.min(100, ((e.clientX - left) / width) * 100));
-    const y = Math.max(0, Math.min(100, ((e.clientY - top) / height) * 100));
-    setZoomOrigin({ x, y });
-    setIsZoomed(true);
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+
+    // Lens is ~42% of main image container
+    const lensW = rect.width * 0.42;
+    const lensH = rect.height * 0.42;
+
+    // Center the lens on cursor
+    let x = e.clientX - rect.left - lensW / 2;
+    let y = e.clientY - rect.top - lensH / 2;
+
+    // Clamp within the main image container boundaries
+    x = Math.max(0, Math.min(rect.width - lensW, x));
+    y = Math.max(0, Math.min(rect.height - lensH, y));
+
+    const maxX = rect.width - lensW;
+    const maxY = rect.height - lensH;
+
+    const percentX = maxX > 0 ? (x / maxX) * 100 : 50;
+    const percentY = maxY > 0 ? (y / maxY) * 100 : 50;
+
+    setLensPos({ x, y, width: lensW, height: lensH });
+    setZoomPercent({ x: percentX, y: percentY });
+  };
+
+  const handleMouseEnter = (e) => {
+    handleMouseMove(e);
+    setIsHovered(true);
   };
 
   const handleMouseLeave = () => {
-    setIsZoomed(false);
-    setZoomOrigin({ x: 50, y: 50 });
+    setIsHovered(false);
   };
 
   const currentImage = safeImages[activeIndex] || safeImages[0];
 
   return (
     <div className="w-full">
-      {/* ================= DESKTOP VIEW (hidden on mobile, md:flex) ================= */}
-      <div className="hidden md:flex items-start gap-4">
-        {/* Vertical Thumbnails (hidden if only 1 image) */}
-        {safeImages.length > 1 && (
-          <div className="flex flex-col gap-3 w-16 shrink-0 py-1 max-h-[480px] overflow-y-auto no-scrollbar">
-            {safeImages.map((img, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => {
-                  setActiveIndex(idx);
-                  setIsMainImgLoaded(false);
-                }}
-                className={cn(
-                  'relative aspect-square w-16 rounded-xl overflow-hidden bg-[#F7F7F8] border-2 transition-all p-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-                  activeIndex === idx
-                    ? 'border-primary ring-1 ring-primary shadow-sm'
-                    : 'border-border/70 hover:border-border hover:opacity-90'
-                )}
-                aria-label={`Select product image ${idx + 1}`}
-              >
-                <img
-                  src={img}
-                  alt={`${alt} thumbnail ${idx + 1}`}
-                  loading="lazy"
-                  onError={(e) => {
-                    e.currentTarget.src = FALLBACK_IMAGE;
-                  }}
-                  className="h-full w-full object-contain"
-                />
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Main Image Container */}
-        <div className="relative flex-1 aspect-square rounded-2xl bg-[#F7F7F8] border border-border/80 overflow-hidden group select-none">
+      {/* ================= DESKTOP VIEW (hidden on mobile, md:block) ================= */}
+      <div className="hidden md:block w-full">
+        {/* Main Image Container with Lens and Right Zoom Preview */}
+        <div
+          ref={containerRef}
+          onMouseMove={handleMouseMove}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          onClick={() => {
+            setPreviewIndex(activeIndex);
+            setIsPreviewOpen(true);
+          }}
+          className="relative w-full aspect-square rounded-2xl bg-[#F7F7F8] dark:bg-card border border-border/80 overflow-hidden cursor-crosshair group select-none"
+        >
           {!isMainImgLoaded && (
             <Skeleton className="absolute inset-0 h-full w-full rounded-2xl" />
           )}
 
-          {/* Interactive Zoom Wrapper */}
-          <div
-            className="w-full h-full p-6 flex items-center justify-center cursor-crosshair overflow-hidden"
-            onMouseMove={handleMouseMove}
-            onMouseLeave={handleMouseLeave}
-            onClick={() => {
-              setPreviewIndex(activeIndex);
-              setIsPreviewOpen(true);
-            }}
-            role="button"
-            tabIndex={0}
-            aria-label="Click to zoom image"
-          >
+          {/* Main Product Image */}
+          <div className="w-full h-full p-6 flex items-center justify-center">
             <img
               src={currentImage}
               alt={alt}
@@ -129,25 +163,28 @@ const ProductImageGallery = ({ images = [], alt = 'Product Image' }) => {
                 e.currentTarget.src = FALLBACK_IMAGE;
                 setIsMainImgLoaded(true);
               }}
-              className={cn(
-                'h-full w-full object-contain transition-transform duration-100 ease-out pointer-events-none',
-                isZoomed ? 'scale-[1.85]' : 'scale-100'
-              )}
-              style={
-                isZoomed
-                  ? {
-                      transformOrigin: `${zoomOrigin.x}% ${zoomOrigin.y}%`,
-                    }
-                  : { transformOrigin: 'center center' }
-              }
+              className="h-full w-full object-contain pointer-events-none"
             />
           </div>
+
+          {/* Semi-transparent Magnifier Lens Overlay on Hover */}
+          {isHovered && (
+            <div
+              className="absolute pointer-events-none border border-white/80 dark:border-white/40 bg-white/45 dark:bg-white/20 shadow-md backdrop-blur-[0.5px]"
+              style={{
+                left: `${lensPos.x}px`,
+                top: `${lensPos.y}px`,
+                width: `${lensPos.width}px`,
+                height: `${lensPos.height}px`,
+              }}
+            />
+          )}
 
           {/* Fullscreen Expand Button Overlay */}
           <Button
             variant="secondary"
             size="icon"
-            className="absolute top-3 right-3 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background"
+            className="absolute top-3 right-3 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background z-10"
             onClick={(e) => {
               e.stopPropagation();
               setPreviewIndex(activeIndex);
@@ -157,12 +194,89 @@ const ProductImageGallery = ({ images = [], alt = 'Product Image' }) => {
           >
             <Maximize2 className="h-4 w-4 text-foreground" />
           </Button>
+
+          {/* Right-side High-Res Zoomed Preview Window (covers the right column area) */}
+          {isHovered && (
+            <div
+              className="hidden md:block absolute left-[calc(100%+1.5rem)] lg:left-[calc(100%+3.5rem)] top-0 w-full aspect-square z-50 bg-[#F7F7F8] dark:bg-card rounded-2xl border border-border shadow-2xl overflow-hidden pointer-events-none"
+              style={{ minWidth: '100%' }}
+            >
+              <div
+                className="w-full h-full bg-no-repeat bg-[#F7F7F8] dark:bg-card"
+                style={{
+                  backgroundImage: `url(${currentImage})`,
+                  backgroundPosition: `${zoomPercent.x}% ${zoomPercent.y}%`,
+                  backgroundSize: '280%',
+                }}
+              />
+            </div>
+          )}
         </div>
+
+        {/* Horizontal Thumbnails Carousel below Main Image */}
+        {safeImages.length > 1 && (
+          <div className="relative mt-4 flex items-center gap-2">
+            {canScrollLeft && (
+              <button
+                type="button"
+                onClick={() => scrollThumbnails('left')}
+                aria-label="Previous thumbnails"
+                className="h-8 w-8 rounded-full border border-border bg-card shadow-sm flex items-center justify-center hover:bg-secondary text-foreground transition-colors cursor-pointer shrink-0 z-10"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+            )}
+
+            <div
+              ref={thumbnailsRef}
+              className="flex items-center gap-2.5 overflow-x-auto no-scrollbar scroll-smooth py-1 px-0.5"
+            >
+              {safeImages.map((img, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => {
+                    setActiveIndex(idx);
+                    setIsMainImgLoaded(false);
+                  }}
+                  className={cn(
+                    'relative h-16 w-16 sm:h-18 sm:w-18 rounded-xl overflow-hidden bg-[#F7F7F8] dark:bg-secondary/40 border-2 transition-all p-1.5 shrink-0 focus:outline-none cursor-pointer',
+                    activeIndex === idx
+                      ? 'border-primary ring-1 ring-primary shadow-xs'
+                      : 'border-border/70 hover:border-foreground/30 hover:opacity-90'
+                  )}
+                  aria-label={`Select product image ${idx + 1}`}
+                >
+                  <img
+                    src={img}
+                    alt={`${alt} thumbnail ${idx + 1}`}
+                    loading="lazy"
+                    onError={(e) => {
+                      e.currentTarget.src = FALLBACK_IMAGE;
+                    }}
+                    className="h-full w-full object-contain"
+                  />
+                </button>
+              ))}
+            </div>
+
+            {canScrollRight && (
+              <button
+                type="button"
+                onClick={() => scrollThumbnails('right')}
+                aria-label="Next thumbnails"
+                className="h-8 w-8 rounded-full border border-border bg-card shadow-sm flex items-center justify-center hover:bg-secondary text-foreground transition-colors cursor-pointer shrink-0 z-10"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ================= MOBILE VIEW (swipeable shadcn carousel) ================= */}
       <div className="block md:hidden w-full">
-        <div className="relative w-full aspect-square bg-[#F7F7F8] rounded-2xl border border-border/70 overflow-hidden">
+        <div className="relative w-full aspect-square bg-[#F7F7F8] dark:bg-card rounded-2xl border border-border/70 overflow-hidden">
           <Carousel setApi={setCarouselApi} className="w-full h-full">
             <CarouselContent className="h-full ml-0">
               {safeImages.map((img, idx) => (
@@ -230,7 +344,7 @@ const ProductImageGallery = ({ images = [], alt = 'Product Image' }) => {
 
           <div className="flex flex-col items-center justify-center gap-4">
             {/* Large Preview */}
-            <div className="relative w-full aspect-square max-h-[65vh] bg-[#F7F7F8] rounded-xl flex items-center justify-center p-4 overflow-hidden">
+            <div className="relative w-full aspect-square max-h-[65vh] bg-[#F7F7F8] dark:bg-card rounded-xl flex items-center justify-center p-4 overflow-hidden">
               <img
                 src={safeImages[previewIndex]}
                 alt={`${alt} large preview`}
@@ -282,7 +396,7 @@ const ProductImageGallery = ({ images = [], alt = 'Product Image' }) => {
                     type="button"
                     onClick={() => setPreviewIndex(idx)}
                     className={cn(
-                      'h-14 w-14 shrink-0 rounded-lg p-1 bg-[#F7F7F8] border-2 transition-all',
+                      'h-14 w-14 shrink-0 rounded-lg p-1 bg-[#F7F7F8] dark:bg-card border-2 transition-all cursor-pointer',
                       previewIndex === idx
                         ? 'border-primary ring-1 ring-primary'
                         : 'border-border/60 opacity-70 hover:opacity-100'

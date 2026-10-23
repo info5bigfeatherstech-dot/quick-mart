@@ -1,5 +1,5 @@
 import React from 'react';
-import { RotateCcw, Clock, MapPin, CheckCircle2, Truck, XCircle } from 'lucide-react';
+import { RotateCcw, Clock, CheckCircle2, Truck, XCircle, ChevronDown } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { formatPrice } from '@/utils/formatPrice';
 import { formatDate } from '@/utils/formatDate';
@@ -8,17 +8,12 @@ import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
 
 /**
- * Reusable OrderCard component displaying order summary, status, thumbnails, and expandable details
+ * Reusable OrderCard component displaying order summary, status, thumbnails,
+ * and triggering in-place order details view on click matching the design.
  */
-const OrderCard = ({ order }) => {
+const OrderCard = ({ order, onViewDetails }) => {
   const addItem = useCartStore((state) => state.addItem);
   const openDrawer = useCartStore((state) => state.openDrawer);
 
@@ -72,7 +67,10 @@ const OrderCard = ({ order }) => {
   const extraItemsCount = order.items.length - 4;
 
   return (
-    <Card className="p-4 sm:p-5 bg-card border-border rounded-2xl shadow-none">
+    <Card
+      onClick={onViewDetails}
+      className="p-4 sm:p-5 bg-card border-border rounded-2xl shadow-none hover:border-primary/50 transition-all cursor-pointer group"
+    >
       {/* Top Bar: Order ID, Date, and Status */}
       <div className="flex flex-wrap items-center justify-between gap-2 pb-3.5 border-b border-border/80">
         <div className="flex flex-col">
@@ -126,100 +124,31 @@ const OrderCard = ({ order }) => {
 
         {/* Reorder Button */}
         <Button
+          type="button"
           variant="outline"
           size="sm"
-          onClick={handleReorder}
-          className="rounded-xl border-primary text-primary hover:bg-primary/10 gap-1.5 font-medium text-xs self-stretch sm:self-auto"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleReorder();
+          }}
+          className="rounded-xl border-primary text-primary hover:bg-primary/10 gap-1.5 font-medium text-xs self-stretch sm:self-auto cursor-pointer"
         >
           <RotateCcw className="h-3.5 w-3.5" />
           <span>Reorder</span>
         </Button>
       </div>
 
-      {/* Expandable Details Accordion */}
-      <Accordion type="single" collapsible className="border-t border-border/60">
-        <AccordionItem value="details" className="border-0">
-          <AccordionTrigger className="py-2.5 text-xs font-medium text-primary hover:no-underline">
-            <span>View order & delivery details</span>
-          </AccordionTrigger>
-          <AccordionContent className="pt-2 pb-0 space-y-4">
-            {/* Items List */}
-            <div className="rounded-xl bg-secondary/60 border border-border/60 p-3 space-y-2.5">
-              <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground block mb-1">
-                Ordered Items
-              </span>
-              <div className="divide-y divide-border/60">
-                {order.items.map(({ product, quantity }) => (
-                  <div
-                    key={product.id}
-                    className="py-2 flex items-center justify-between gap-3 text-xs"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="h-9 w-9 rounded-lg bg-card border border-border p-1 shrink-0 flex items-center justify-center">
-                        <img
-                          src={product.image}
-                          alt={product.name}
-                          className="h-full w-full object-contain"
-                        />
-                      </div>
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-medium text-foreground truncate">
-                          {product.name}
-                        </span>
-                        <span className="text-[11px] text-muted-foreground">
-                          {product.weight} × {quantity}
-                        </span>
-                      </div>
-                    </div>
-
-                    <span className="font-medium text-foreground shrink-0">
-                      {formatPrice(product.price * quantity)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Bill & Address Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              {/* Delivery Address */}
-              <div className="p-3 rounded-xl bg-secondary/40 border border-border/60 flex items-start gap-2">
-                <MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                <div className="flex flex-col">
-                  <span className="font-medium text-foreground">Delivery Address</span>
-                  <span className="text-muted-foreground text-[11px] mt-0.5 leading-relaxed">
-                    {order.address}
-                  </span>
-                </div>
-              </div>
-
-              {/* Bill Summary */}
-              <div className="p-3 rounded-xl bg-secondary/40 border border-border/60 space-y-1.5">
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Item Total</span>
-                  <span className="text-foreground font-medium">
-                    {formatPrice(order.itemTotal)}
-                  </span>
-                </div>
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Delivery Fee</span>
-                  <span>
-                    {order.deliveryFee === 0 ? (
-                      <strong className="text-success font-medium">FREE</strong>
-                    ) : (
-                      formatPrice(order.deliveryFee)
-                    )}
-                  </span>
-                </div>
-                <div className="flex justify-between font-medium text-foreground pt-1 border-t border-border/60">
-                  <span>Total Paid</span>
-                  <span>{formatPrice(order.total)}</span>
-                </div>
-              </div>
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+      {/* Bottom Bar: View order & delivery details link */}
+      <div
+        onClick={(e) => {
+          e.stopPropagation();
+          onViewDetails?.();
+        }}
+        className="pt-3 border-t border-border/60 flex items-center justify-between text-xs font-medium text-primary hover:text-primary/85 transition-colors"
+      >
+        <span>View order & delivery details</span>
+        <ChevronDown className="h-4 w-4 text-primary transition-transform group-hover:translate-y-0.5" />
+      </div>
     </Card>
   );
 };

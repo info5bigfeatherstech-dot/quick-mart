@@ -102,7 +102,7 @@ const Addresses = () => {
       {/* Top Header matching screenshot */}
       <div className="space-y-1.5 pb-1">
         <h2 className="text-lg sm:text-xl font-medium text-foreground tracking-tight">
-          My addresses
+          My Addresses
         </h2>
         <button
           type="button"
@@ -110,7 +110,7 @@ const Addresses = () => {
           className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
         >
           <Plus className="h-4 w-4" />
-          <span>Add new address</span>
+          <span>Add New Address</span>
         </button>
       </div>
 

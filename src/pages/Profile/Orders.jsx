@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Package, ShoppingBag } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ShoppingBag } from 'lucide-react';
 import { useOrders } from '@/hooks/useOrders';
 import OrderCard from '@/components/profile/OrderCard';
+import OrderDetailsView from '@/components/profile/OrderDetailsView';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ErrorState from '@/components/common/ErrorState';
@@ -10,12 +11,31 @@ import EmptyState from '@/components/common/EmptyState';
 import { ROUTES } from '@/utils/constants';
 
 /**
- * Orders page displaying order history, status filter tabs, and reorder functionality
+ * Orders page displaying order history, status filter tabs, and reorder functionality.
+ * Switches seamlessly to in-place OrderDetailsView upon selecting an order.
  */
 const Orders = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const orderIdParam = searchParams.get('orderId');
+
   const { data: orders = [], isLoading, isError, refetch } = useOrders();
   const [filterTab, setFilterTab] = useState('all');
+  const [selectedOrderId, setSelectedOrderId] = useState(orderIdParam || null);
+
+  // Sync selectedOrderId if URL param changes
+  const activeOrderId = selectedOrderId || orderIdParam;
+  const selectedOrder = orders.find((order) => order.id === activeOrderId);
+
+  const handleSelectOrder = (orderId) => {
+    setSelectedOrderId(orderId);
+    setSearchParams({ orderId });
+  };
+
+  const handleBackToOrders = () => {
+    setSelectedOrderId(null);
+    setSearchParams({});
+  };
 
   if (isError) {
     return (
@@ -55,6 +75,16 @@ const Orders = () => {
     );
   }
 
+  // If an order is selected, display the full details view in-place (no modal/drawer)
+  if (selectedOrder) {
+    return (
+      <OrderDetailsView
+        order={selectedOrder}
+        onBack={handleBackToOrders}
+      />
+    );
+  }
+
   // Filter orders based on status
   const filteredOrders = orders
     .filter((order) => {
@@ -72,7 +102,7 @@ const Orders = () => {
           <h2 className="text-base sm:text-lg font-medium text-foreground">
             Order History
           </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <p className="text-xs text-muted-foreground mt-0.5 capitalize">
             View items, track dispatch status, and reorder daily groceries
           </p>
         </div>
@@ -114,7 +144,11 @@ const Orders = () => {
       ) : (
         <div className="space-y-4">
           {filteredOrders.map((order) => (
-            <OrderCard key={order.id} order={order} />
+            <OrderCard
+              key={order.id}
+              order={order}
+              onViewDetails={() => handleSelectOrder(order.id)}
+            />
           ))}
         </div>
       )}
