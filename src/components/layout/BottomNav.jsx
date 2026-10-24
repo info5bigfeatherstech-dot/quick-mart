@@ -21,9 +21,13 @@ const BottomNav = () => {
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn || state.isAuthenticated);
   const openLoginDialog = useAuthStore((state) => state.openLoginDialog);
 
-  // Hide on Product Detail page (which has its own action bar) or when cart drawer is open
+  // Hide on Product Detail page (which has its own action bar), cart drawer, checkout, and order success
   const isProductDetail = location.pathname.startsWith('/product/');
-  if (isProductDetail || isDrawerOpen) {
+  const isCheckoutOrSuccess =
+    location.pathname.startsWith('/checkout') ||
+    location.pathname.startsWith('/order-success');
+
+  if (isProductDetail || isDrawerOpen || isCheckoutOrSuccess) {
     return null;
   }
 

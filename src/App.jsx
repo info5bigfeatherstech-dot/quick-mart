@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import MainLayout from './components/layout/MainLayout';
 import ScrollToTop from './components/common/ScrollToTop';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import ErrorBoundary from './components/common/ErrorBoundary';
 import { Skeleton } from './components/ui/skeleton';
 import { ROUTES } from './utils/constants';
 
@@ -16,6 +17,8 @@ const Orders = React.lazy(() => import('./pages/Profile/Orders'));
 const Addresses = React.lazy(() => import('./pages/Profile/Addresses'));
 const ProductDetail = React.lazy(() => import('./pages/ProductDetail'));
 const CategoryDetail = React.lazy(() => import('./pages/CategoryDetail'));
+const Checkout = React.lazy(() => import('./pages/Checkout/Checkout'));
+const OrderSuccess = React.lazy(() => import('./pages/Checkout/OrderSuccess'));
 const NotFound = React.lazy(() => import('./pages/NotFound'));
 
 /**
@@ -45,9 +48,10 @@ const PageLoadingFallback = () => (
  */
 function App() {
   return (
-    <MainLayout>
-      <ScrollToTop />
-      <Suspense fallback={<PageLoadingFallback />}>
+    <ErrorBoundary>
+      <MainLayout>
+        <ScrollToTop />
+        <Suspense fallback={<PageLoadingFallback />}>
         <Routes>
           <Route path={ROUTES.HOME} element={<Home />} />
           <Route path={ROUTES.CONTACT_US} element={<ContactUs />} />
@@ -70,11 +74,30 @@ function App() {
             <Route path="addresses" element={<Addresses />} />
           </Route>
 
+          {/* Protected Checkout & Order Success */}
+          <Route
+            path={ROUTES.CHECKOUT}
+            element={
+              <ProtectedRoute>
+                <Checkout />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/order-success/:orderId"
+            element={
+              <ProtectedRoute>
+                <OrderSuccess />
+              </ProtectedRoute>
+            }
+          />
+
           {/* 404 Catch-All */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
     </MainLayout>
+    </ErrorBoundary>
   );
 }
 

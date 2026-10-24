@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Loader2, Zap } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useLogin } from '@/hooks/useLogin';
@@ -15,6 +15,7 @@ import PhoneInput from '@/components/common/PhoneInput';
  * Large h-12 mobile input row, sticky bottom continue button
  */
 const LoginDialog = () => {
+  const navigate = useNavigate();
   const isLoginDialogOpen = useAuthStore((state) => state.isLoginDialogOpen);
   const closeLoginDialog = useAuthStore((state) => state.closeLoginDialog);
 
@@ -43,6 +44,11 @@ const LoginDialog = () => {
     loginMutation.mutate(phone, {
       onSuccess: () => {
         closeLoginDialog();
+        const redirect = useAuthStore.getState().redirectAfterLogin;
+        if (redirect) {
+          navigate(redirect);
+          useAuthStore.getState().setRedirectAfterLogin(null);
+        }
       },
     });
   };

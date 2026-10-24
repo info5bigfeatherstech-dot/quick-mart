@@ -18,6 +18,7 @@ import { formatDate } from '@/utils/formatDate';
 import { ROUTES } from '@/utils/constants';
 import { Button } from '@/components/ui/button';
 import { useCartStore } from '@/store/cartStore';
+import OrderTimeline from '@/components/checkout/OrderTimeline';
 
 /**
  * OrderDetailsView:
@@ -147,6 +148,11 @@ const OrderDetailsView = ({ order, onBack }) => {
         <p className={`text-xs sm:text-sm font-medium mt-1.5 leading-relaxed select-text capitalize ${statusSubtitleColor}`}>
           {statusSubtitle}
         </p>
+
+        {/* Reusable Order Timeline */}
+        <div className="pt-2 px-1">
+          <OrderTimeline currentStatus={order.status || 'Placed'} />
+        </div>
       </div>
 
       {/* 2. Items in this order */}

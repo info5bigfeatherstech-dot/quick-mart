@@ -7,7 +7,9 @@ import {
   Trash2,
   CheckCircle2,
   MoreVertical,
+  AlertCircle,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { formatPhone } from '@/utils/formatPhone';
 import { Button } from '@/components/ui/button';
 import {
@@ -31,6 +33,7 @@ import {
 /**
  * AddressCard: Single row address item matching quick-commerce style
  * Features warm category icon, title, full address string, and a 3-dots actions menu
+ * Supports selectable mode for checkout flow
  */
 const AddressCard = ({
   address,
@@ -39,6 +42,11 @@ const AddressCard = ({
   onSetDefault,
   isDeleting = false,
   isSettingDefault = false,
+  selectable = false,
+  selected = false,
+  onSelect,
+  serviceable = true,
+  serviceabilityMessage,
 }) => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
@@ -65,11 +73,55 @@ const AddressCard = ({
     .filter(Boolean)
     .join(', ');
 
+  const handleCardClick = (e) => {
+    if (selectable && onSelect) {
+      onSelect(address);
+    }
+  };
+
   return (
     <>
-      <div className="flex items-start justify-between gap-3 p-4 sm:p-5 hover:bg-secondary/30 transition-colors select-none group">
-        {/* Left Icon and Address Details */}
-        <div className="flex items-start gap-3.5 min-w-0 flex-1">
+      <div
+        onClick={handleCardClick}
+        role={selectable ? 'radio' : undefined}
+        aria-checked={selectable ? selected : undefined}
+        tabIndex={selectable ? 0 : undefined}
+        onKeyDown={(e) => {
+          if (selectable && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            onSelect?.(address);
+          }
+        }}
+        className={cn(
+          'flex items-start justify-between gap-3 p-4 sm:p-5 transition-all select-none group',
+          selectable
+            ? 'cursor-pointer rounded-2xl border'
+            : 'hover:bg-secondary/30',
+          selectable && selected
+            ? 'border-primary/70 bg-primary/5 ring-1 ring-primary/40 shadow-xs'
+            : selectable
+            ? 'border-border/70 bg-card hover:border-primary/40 hover:bg-secondary/15'
+            : '',
+          selectable && !serviceable && 'border-amber-300/80 bg-amber-50/20'
+        )}
+      >
+        {/* Left Radio (in selectable mode), Icon and Address Details */}
+        <div className="flex items-start gap-3 sm:gap-3.5 min-w-0 flex-1">
+          {selectable && (
+            <div className="shrink-0 flex items-center pt-2.5 pr-0.5">
+              <div
+                className={cn(
+                  'w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all',
+                  selected
+                    ? 'border-primary bg-primary text-white shadow-2xs'
+                    : 'border-muted-foreground/35 bg-background group-hover:border-primary/60'
+                )}
+              >
+                {selected && <div className="w-2 h-2 rounded-full bg-white" />}
+              </div>
+            </div>
+          )}
+
           {/* Warm Amber Icon Container */}
           <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-[#FDF6E7] border border-[#FBEAC4] text-[#B88714] flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
             {getTypeIcon(address.type)}
@@ -78,12 +130,12 @@ const AddressCard = ({
           {/* Text Information */}
           <div className="min-w-0 flex-1 pr-2">
             <div className="flex items-center gap-2">
-              <h4 className="text-sm font-medium text-foreground">
+              <h4 className="text-sm font-semibold text-foreground">
                 {address.type || 'Home'}
               </h4>
 
               {address.isDefault && (
-                <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 rounded-md">
+                <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-1.5 py-0.5 rounded-md">
                   Default
                 </span>
               )}
@@ -98,11 +150,21 @@ const AddressCard = ({
                 {address.name} {address.phone ? `• ${formatPhone(address.phone)}` : ''}
               </p>
             )}
+
+            {!serviceable && (
+              <div className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-rose-600 bg-rose-50 border border-rose-200/80 px-2 py-1 rounded-lg">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{serviceabilityMessage || "We don't deliver here yet"}</span>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Three Dots Action Menu */}
-        <div className="shrink-0 pt-0.5">
+        <div
+          className="shrink-0 pt-0.5"
+          onClick={(e) => e.stopPropagation()}
+        >
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button

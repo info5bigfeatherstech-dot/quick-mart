@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { useCheckoutStore } from './checkoutStore';
 
 export const useAuthStore = create(
   persist(
@@ -9,6 +10,7 @@ export const useAuthStore = create(
       isLoggedIn: false,
       isAuthenticated: false,
       isLoginDialogOpen: false,
+      redirectAfterLogin: null,
 
       // Actions
       login: ({ user, token }) => {
@@ -22,12 +24,18 @@ export const useAuthStore = create(
       },
 
       logout: () => {
+        useCheckoutStore.getState().resetCheckout();
         set({
           user: null,
           token: null,
           isLoggedIn: false,
           isAuthenticated: false,
+          redirectAfterLogin: null,
         });
+      },
+
+      setRedirectAfterLogin: (path) => {
+        set({ redirectAfterLogin: path });
       },
 
       openLoginDialog: () => {

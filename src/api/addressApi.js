@@ -150,3 +150,48 @@ export const setDefaultAddress = async (id) => {
   const response = await axiosInstance.patch(`/addresses/${id}/default`);
   return response.data;
 };
+
+/**
+ * Serviceable pincodes list in dummy mode (Delhi 1100xx and core NCR)
+ */
+const SERVICEABLE_PREFIXES = ['1100', '1220', '2013'];
+
+/**
+ * Check if a delivery pincode is serviceable by QuickMart's 10-minute network
+ * @param {string} pincode
+ * @returns {Promise<{ data: { serviceable: boolean, deliveryTime?: string, message?: string } }>}
+ */
+export const checkServiceability = async (pincode) => {
+  const cleanPincode = String(pincode || '').trim();
+
+  if (USE_DUMMY_DATA) {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const isServiceable =
+          cleanPincode.length === 6 &&
+          SERVICEABLE_PREFIXES.some((prefix) => cleanPincode.startsWith(prefix));
+
+        if (isServiceable) {
+          resolve({
+            data: {
+              serviceable: true,
+              deliveryTime: '10 to 15 mins',
+              message: 'Fast 10-minute delivery available at your location',
+            },
+          });
+        } else {
+          resolve({
+            data: {
+              serviceable: false,
+              deliveryTime: null,
+              message: "We don't deliver here yet. Try Delhi NCR pincodes (e.g. 110001).",
+            },
+          });
+        }
+      }, 350);
+    });
+  }
+
+  const response = await axiosInstance.get(`/addresses/serviceability/${cleanPincode}`);
+  return response.data;
+};

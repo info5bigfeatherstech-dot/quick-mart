@@ -1,10 +1,13 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ShoppingBag, ArrowRight, ShieldCheck, Clock, Trash2, X } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { useLocationStore } from '@/store/locationStore';
+import { useRequireLogin } from '@/hooks/useRequireLogin';
 import { formatPrice } from '@/utils/formatPrice';
-import { APP_CONFIG } from '@/utils/constants';
+import { calculateBill } from '@/utils/billCalculator';
+import { ROUTES, BILL_CONFIG } from '@/utils/constants';
 
 import ResponsiveSheet from '@/components/common/ResponsiveSheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -20,6 +23,9 @@ import EmptyState from '../common/EmptyState';
  * Desktop: Slide-out right Sheet (~420px)
  */
 const CartDrawer = () => {
+  const navigate = useNavigate();
+  const requireLogin = useRequireLogin();
+
   const isDrawerOpen = useCartStore((state) => state.isDrawerOpen);
   const closeDrawer = useCartStore((state) => state.closeDrawer);
   const items = useCartStore((state) => state.items);
@@ -28,15 +34,22 @@ const CartDrawer = () => {
   const clearCart = useCartStore((state) => state.clearCart);
 
   const totalItems = useCartStore((state) => state.getTotalItems());
-  const itemTotal = useCartStore((state) => state.getTotalPrice());
-  const totalSavings = useCartStore((state) => state.getTotalSavings());
-
   const { address, deliveryTime } = useLocationStore();
 
-  const deliveryFee =
-    itemTotal >= APP_CONFIG.FREE_DELIVERY_THRESHOLD ? 0 : APP_CONFIG.DELIVERY_FEE;
-  const handlingFee = APP_CONFIG.HANDLING_FEE;
-  const grandTotal = itemTotal + deliveryFee + handlingFee;
+  // Consistent bill calculations across cart & checkout
+  const bill = calculateBill({ items });
+  const { itemTotal, deliveryFee, handlingFee, smallCartFee, grandTotal, totalSavings } = bill;
+
+  const handleProceedToCheckout = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    closeDrawer();
+    requireLogin(() => {
+      navigate(ROUTES.CHECKOUT);
+    }, ROUTES.CHECKOUT);
+  };
 
   return (
     <ResponsiveSheet open={isDrawerOpen} onOpenChange={(open) => !open && closeDrawer()}>
@@ -105,12 +118,12 @@ const CartDrawer = () => {
       ) : (
         <>
           {/* Free Delivery Banner */}
-          {itemTotal < APP_CONFIG.FREE_DELIVERY_THRESHOLD && (
+          {itemTotal < BILL_CONFIG.FREE_DELIVERY_THRESHOLD && (
             <div className="px-5 py-2.5 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200/60 text-xs flex items-center justify-between shrink-0">
               <span className="text-amber-900 dark:text-amber-300">
                 Add items worth{' '}
                 <strong className="font-bold">
-                  {formatPrice(APP_CONFIG.FREE_DELIVERY_THRESHOLD - itemTotal)}
+                  {formatPrice(BILL_CONFIG.FREE_DELIVERY_THRESHOLD - itemTotal)}
                 </strong>{' '}
                 for free delivery
               </span>
@@ -212,6 +225,13 @@ const CartDrawer = () => {
                 </span>
               </div>
 
+              {smallCartFee > 0 && (
+                <div className="flex justify-between text-amber-700 dark:text-amber-400">
+                  <span>Small Cart Charge</span>
+                  <span className="font-medium">{formatPrice(smallCartFee)}</span>
+                </div>
+              )}
+
               {totalSavings > 0 && (
                 <div className="flex justify-between text-emerald-600 font-semibold pt-1 border-t border-border/60">
                   <span>Total Savings</span>
@@ -239,22 +259,23 @@ const CartDrawer = () => {
           {/* Sticky Footer Checkout Button */}
           <div className="p-4 border-t border-border bg-background flex flex-col gap-2 shrink-0 safe-bottom">
             <Button
+              type="button"
               variant="default"
               size="lg"
-              disabled
-              className="w-full py-5 sm:py-6 px-4 rounded-xl bg-primary text-primary-foreground font-bold text-sm flex items-center justify-between cursor-not-allowed opacity-90 shadow-sm"
+              onClick={handleProceedToCheckout}
+              className="w-full py-5 sm:py-6 px-4 rounded-xl bg-primary text-primary-foreground font-bold text-sm flex items-center justify-between shadow-md hover:bg-primary/95 cursor-pointer active:scale-[0.99] transition-transform select-none"
             >
-              <div className="flex flex-col text-left">
+              <div className="flex flex-col text-left pointer-events-none">
                 <span className="text-[11px] font-normal opacity-90">Total Amount</span>
                 <span className="font-black text-base">{formatPrice(grandTotal)}</span>
               </div>
-              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider bg-primary-foreground/20 py-1.5 px-3 rounded-lg">
-                <span>Proceed to Pay</span>
+              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider bg-primary-foreground/20 py-1.5 px-3 rounded-lg pointer-events-none">
+                <span>Proceed to Checkout</span>
                 <ArrowRight className="h-4 w-4" />
               </div>
             </Button>
             <p className="text-[10px] text-center text-muted-foreground">
-              Checkout will be enabled in the upcoming release.
+              ⚡ 10-minute instant delivery guaranteed
             </p>
           </div>
         </>

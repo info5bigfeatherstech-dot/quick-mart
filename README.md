@@ -371,4 +371,84 @@ QuickMart treats **mobile as the primary experience** and desktop as the progres
 6. **Data & Fallback**:
    - Powered by [useCategoryProducts(slug)](file:///d:/food/src/hooks/useCategoryProducts.js) and `extraCategoryProducts.js`, ensuring every single one of the 20 quick-commerce categories has realistic products with INR pricing, images, and delivery badges.
 
+---
+
+## 7. Checkout Flow & Order Success Architecture
+
+### Routes & Guards
+- **Checkout Page**: `/checkout` (protected by `<ProtectedRoute>`).
+- **Order Success Page**: `/order-success/:orderId` (protected by `<ProtectedRoute>`).
+- **Unauthenticated User Handling**:
+  - If an unauthenticated user attempts to visit `/checkout` or clicks *"Proceed to checkout"* in `CartDrawer`, `useRequireLogin` intercepts the action, opens `LoginDialog`, and saves the intended path in `authStore.redirectAfterLogin`.
+  - Once phone login completes, the user is automatically redirected to `/checkout`.
+- **Empty Cart Protection**:
+  - Visiting `/checkout` with an empty cart immediately redirects to `/` with a Sonner toast notification (*"Your cart is empty"*).
+- **Overlay Suppression**:
+  - Both `BottomNav` and `FloatingCartBar` automatically hide on `/checkout` and `/order-success` to prevent layout interference and allow dedicated mobile checkout action bars.
+
+### Page Structure ([pages/Checkout/Checkout.jsx](file:///d:/food/src/pages/Checkout/Checkout.jsx))
+The checkout page uses 4 collapsible, numbered step sections ([CheckoutSection.jsx](file:///d:/food/src/components/checkout/CheckoutSection.jsx)):
+1. **Delivery Address**:
+   - Loads saved addresses with `useAddresses`.
+   - Rendered using [AddressCard.jsx](file:///d:/food/src/components/profile/AddressCard.jsx) in `selectable` radio mode.
+   - Seamless add/edit address via [AddressForm.jsx](file:///d:/food/src/components/profile/AddressForm.jsx) embedded inside `ResponsiveModal` (bottom sheet on mobile, dialog on desktop).
+   - **Serviceability Check**: Real-time dummy pincode check (`checkServiceability`). Unserviceable addresses show an inline alert (*"We don't deliver here yet"*) and disable order placement.
+   - **Delivery Instructions**: Reusable [DeliveryInstructions.jsx](file:///d:/food/src/components/checkout/DeliveryInstructions.jsx) with 200-character counter and quick chips (*"Ring the bell"*, *"Leave at the door"*, *"Call before arriving"*).
+2. **Delivery Time**:
+   - [DeliverySlotPicker.jsx](file:///d:/food/src/components/checkout/DeliverySlotPicker.jsx) with shadcn `RadioGroup`.
+   - Options: *"Deliver now (10 to 15 mins)"* and *"Schedule for later"*.
+   - Schedule picker provides day switcher (*Today* / *Tomorrow*) and time slots from `data/deliverySlots.js`. Past slots for today and full slots are automatically disabled.
+3. **Order Review**:
+   - Compact list of cart items with image thumbnail, title, weight/variant, price, and [QuantityStepper.jsx](file:///d:/food/src/components/product/QuantityStepper.jsx).
+   - Real-time cart revalidation via `useValidateCart`. Any out-of-stock items block checkout until updated.
+4. **Payment Method**:
+   - [PaymentMethodSelector.jsx](file:///d:/food/src/components/checkout/PaymentMethodSelector.jsx) supporting UPI, Credit/Debit Card, and Cash on Delivery.
+   - **UPI**: Validates format (`name@bank`) with simulated 500ms dummy verification checkmark.
+   - **Credit / Debit Card**: Pure local state only (never in Zustand, localStorage, query cache, or logs). Masked inputs, Luhn algorithm verification, card brand detection (`Visa`, `Mastercard`, `RuPay`, `Amex`), and expiry/CVV validation.
+   - **Cash on Delivery**: Enforces max order limit of ₹5,000.
+
+### Bill Calculation & `BILL_CONFIG`
+Centralized in pure function `calculateBill` ([src/utils/billCalculator.js](file:///d:/food/src/utils/billCalculator.js)) and shared identically between `CartDrawer` and `OrderSummary`:
+```javascript
+export const BILL_CONFIG = {
+  FREE_DELIVERY_THRESHOLD: 199, // Free delivery on orders above ₹199
+  STANDARD_DELIVERY_FEE: 25,   // Standard delivery fee is ₹25
+  HANDLING_FEE: 5,             // Platform handling fee is ₹5
+  SMALL_CART_THRESHOLD: 99,    // Orders below ₹99 incur small cart fee
+  SMALL_CART_FEE: 20,          // Small cart fee is ₹20
+  SCHEDULED_DELIVERY_FEE: 0,   // Scheduled delivery fee is ₹0
+};
+```
+
+### Dummy Coupons ([src/data/coupons.js](file:///d:/food/src/data/coupons.js))
+- **`FIRST50`**: Flat ₹50 off on orders above ₹299.
+- **`SAVE10`**: 10% off up to ₹100 on orders above ₹199.
+- **`FREEDEL`**: 100% free delivery on any order value.
+- Available coupons can be browsed and applied via the *"View all available coupons"* modal in [CouponInput.jsx](file:///d:/food/src/components/checkout/CouponInput.jsx).
+
+### Test Cases & QA Validation
+| Test Case | Action | Expected Behavior |
+| :--- | :--- | :--- |
+| **Payment Failure Simulation** | Select UPI and enter ID `fail@upi` | Order placement fails after 1500ms. Inline `PaymentFailed` component appears with *"Try again"* and *"Choose another method"* buttons. Cart and inputs remain intact. |
+| **Unserviceable Pincode** | Add/Select address with pincode outside `1100xx`, `1220xx`, `2013xx` (e.g. `400001`) | Inline warning *"We don't deliver to this pincode yet"* displays on card. Place Order button is disabled. |
+| **Empty Cart Redirect** | Direct URL navigation to `/checkout` with 0 items | Immediately redirects to `/` with Sonner toast *"Your cart is empty"*. |
+| **COD Order Limit** | Cart total exceeds ₹5,000 | COD option is disabled with reason *"COD is not available for orders above ₹5,000"*. |
+| **Out of Stock Simulation** | Run `window.__TEST_CART_OUT_OF_STOCK__ = true` in console | Order Review section flags first item as out-of-stock and blocks checkout. |
+| **Form Error Scroll** | Click *"Place Order"* with missing address/payment | Viewport smoothly scrolls to and focuses on the first invalid section using `scrollToError.js`. |
+
+### Order Success Page ([pages/Checkout/OrderSuccess.jsx](file:///d:/food/src/pages/Checkout/OrderSuccess.jsx))
+- Displays animated green checkmark, Order ID, and estimated delivery time.
+- Displays [OrderTimeline.jsx](file:///d:/food/src/components/checkout/OrderTimeline.jsx) (*Placed -> Packed -> On the way -> Delivered*).
+- Shows delivery address, payment method, collapsible itemized bill summary, *"Track Order"* button (navigates to Profile Orders), and *"Continue Shopping"* button.
+
+### Switching Checkout & Orders to Real Backend API
+Set `USE_DUMMY_DATA = false` in `src/utils/constants.js`:
+- `placeOrder(payload)` -> `POST /orders`
+- `getOrderById(orderId)` -> `GET /orders/:id`
+- `getDeliverySlots(day)` -> `GET /checkout/slots?day=today|tomorrow`
+- `validateCart(items)` -> `POST /checkout/validate-cart`
+- `applyCoupon(code, cartTotal)` -> `POST /checkout/apply-coupon`
+- `checkServiceability(pincode)` -> `GET /addresses/serviceability/:pincode`
+
+
 
