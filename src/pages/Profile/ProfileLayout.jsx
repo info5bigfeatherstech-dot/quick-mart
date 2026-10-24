@@ -33,7 +33,7 @@ const ProfileLayout = () => {
   }
 
   const isAddressesPage = pathname.includes('addresses');
-  const activeTitle = isAddressesPage ? 'Saved Addresses' : 'My Orders';
+  const activeTitle = isAddressesPage ? 'My Addresses' : 'My Orders';
 
   return (
     <div className="pb-24 lg:pb-16 pt-2">
@@ -61,12 +61,12 @@ const ProfileLayout = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
         {/* Left Column: Profile Navigation Sidebar (hidden on mobile sub-pages) */}
-        <aside className="hidden lg:block lg:col-span-4 sticky top-24">
+        <aside className="hidden lg:block lg:col-span-4 xl:col-span-3 sticky top-24">
           <ProfileSidebar />
         </aside>
 
         {/* Right Column: Active Sub-section */}
-        <section className="lg:col-span-8 min-w-0">
+        <section className="lg:col-span-8 xl:col-span-9 min-w-0">
           <Outlet />
         </section>
       </div>

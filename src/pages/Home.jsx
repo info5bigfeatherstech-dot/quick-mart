@@ -1,4 +1,5 @@
 import React from 'react';
+import HeroBanner from '../components/banner/HeroBanner';
 import BannerCarousel from '../components/banner/BannerCarousel';
 import CategoryGrid from '../components/category/CategoryGrid';
 import ProductRow, { ProductRowSkeleton } from '../components/product/ProductRow';
@@ -10,7 +11,7 @@ import { useProductSections } from '../hooks/useProductSections';
 
 /**
  * Home Page: Quick-commerce landing experience
- * Renders BannerCarousel, CategoryGrid, and dynamically maps over all ProductSections
+ * Renders HeroBanner, BannerCarousel, CategoryGrid, and dynamically maps over all ProductSections
  */
 const Home = () => {
   const {
@@ -35,7 +36,10 @@ const Home = () => {
   } = useProductSections();
 
   return (
-    <div className="py-2 sm:py-4 space-y-2 sm:space-y-4">
+    <div className="py-2 sm:py-4 space-y-4 sm:space-y-6">
+      {/* 0. Full-width Hero Banner Template (Just after navbar) */}
+      <HeroBanner />
+
       {/* 1. Promotional Banners */}
       <BannerCarousel
         banners={banners}

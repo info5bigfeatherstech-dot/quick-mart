@@ -3,13 +3,9 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { LogOut } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { profileMenuItems } from '@/data/profileMenu';
-import { formatPhone } from '@/utils/formatPhone';
 import { ROUTES } from '@/utils/constants';
 import { toast } from 'sonner';
 
-import { Card } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,7 +19,11 @@ import {
 import { cn } from '@/lib/utils';
 
 /**
- * ProfileSidebar for navigation between orders, saved addresses, and account actions
+ * ProfileSidebar component matching the clean Blinkit-style account navigation:
+ * - Top header with user phone number pill
+ * - Edge-to-edge bordered navigation rows
+ * - Subtle active state and hover transitions
+ * - Matching logout row with confirmation dialog
  */
 const ProfileSidebar = ({ className = '' }) => {
   const navigate = useNavigate();
@@ -36,33 +36,26 @@ const ProfileSidebar = ({ className = '' }) => {
     toast.info('Logged out successfully');
   };
 
-  const displayName = user?.name || 'QuickMart Customer';
-  const displayPhone = user?.phone ? formatPhone(user.phone) : '+91 98765 43210';
-  const initial = (user?.name?.[0] || 'U').toUpperCase();
+  // Clean phone number display (matching screenshot +917536063814)
+  const displayPhone = user?.phone || '+917536063814';
 
   return (
     <>
-      <Card className={cn('p-4 sm:p-5 bg-card border-border rounded-2xl shadow-none', className)}>
-        {/* User Card Header */}
-        <div className="flex items-center gap-3.5 pb-4 border-b border-border">
-          <Avatar className="h-12 w-12 border-2 border-primary/20">
-            <AvatarImage src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80" />
-            <AvatarFallback className="bg-primary text-primary-foreground font-medium text-sm">
-              {initial}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex flex-col min-w-0">
-            <h2 className="text-sm sm:text-base font-medium text-foreground truncate">
-              {displayName}
-            </h2>
-            <span className="text-xs text-muted-foreground font-medium mt-0.5">
-              {displayPhone}
-            </span>
+      <div
+        className={cn(
+          'w-full bg-white border border-[#e8ebed] rounded-2xl shadow-none overflow-hidden select-none',
+          className
+        )}
+      >
+        {/* Top Header: Phone Number Pill */}
+        <div className="py-4 px-5 flex items-center justify-center border-b border-[#eef0f2] bg-white">
+          <div className="inline-flex items-center justify-center px-4 py-1.5 rounded-full border border-[#e2e8f0] bg-white text-xs sm:text-[13px] font-medium text-neutral-600 tracking-wide">
+            {displayPhone}
           </div>
         </div>
 
-        {/* Menu Navigation Items */}
-        <nav className="pt-3 space-y-1">
+        {/* Navigation Items */}
+        <nav className="flex flex-col">
           {profileMenuItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -71,21 +64,26 @@ const ProfileSidebar = ({ className = '' }) => {
                 to={item.path}
                 className={({ isActive }) =>
                   cn(
-                    'flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-colors',
+                    'group w-full flex items-center gap-3.5 px-6 py-4 text-xs sm:text-[13px] transition-colors border-b border-[#eef0f2]',
                     isActive
-                      ? 'bg-primary/10 text-primary font-medium'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+                      ? 'bg-neutral-50/80 text-neutral-900 font-medium'
+                      : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-50/50 font-normal'
                   )
                 }
               >
-                <div className="flex items-center gap-2.5">
-                  <Icon className="h-4 w-4" />
-                  <span>{item.label}</span>
-                </div>
-                {item.badge && (
-                  <span className="text-[10px] bg-primary text-primary-foreground font-medium px-1.5 py-0.5 rounded-full">
-                    {item.badge}
-                  </span>
+                {({ isActive }) => (
+                  <>
+                    <Icon
+                      className={cn(
+                        'w-4 h-4 shrink-0 transition-colors',
+                        isActive
+                          ? 'text-neutral-800'
+                          : 'text-neutral-400 group-hover:text-neutral-600'
+                      )}
+                      strokeWidth={1.75}
+                    />
+                    <span>{item.label}</span>
+                  </>
                 )}
               </NavLink>
             );
@@ -95,13 +93,16 @@ const ProfileSidebar = ({ className = '' }) => {
           <button
             type="button"
             onClick={() => setIsLogoutDialogOpen(true)}
-            className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors text-left"
+            className="group w-full flex items-center gap-3.5 px-6 py-4 text-xs sm:text-[13px] font-normal text-neutral-500 hover:text-red-600 hover:bg-red-50/60 dark:hover:text-red-400 dark:hover:bg-red-950/30 transition-colors cursor-pointer text-left"
           >
-            <LogOut className="h-4 w-4" />
+            <LogOut
+              className="w-4 h-4 shrink-0 text-neutral-400 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors"
+              strokeWidth={1.75}
+            />
             <span>Logout</span>
           </button>
         </nav>
-      </Card>
+      </div>
 
       {/* Logout Confirmation AlertDialog */}
       <AlertDialog open={isLogoutDialogOpen} onOpenChange={setIsLogoutDialogOpen}>

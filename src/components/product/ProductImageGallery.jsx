@@ -136,66 +136,69 @@ const ProductImageGallery = ({ images = [], alt = 'Product Image' }) => {
   return (
     <div className="w-full">
       {/* ================= DESKTOP VIEW (hidden on mobile, md:block) ================= */}
-      <div className="hidden md:block w-full">
-        {/* Main Image Container with Lens and Right Zoom Preview */}
-        <div
-          ref={containerRef}
-          onMouseMove={handleMouseMove}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-          onClick={() => {
-            setPreviewIndex(activeIndex);
-            setIsPreviewOpen(true);
-          }}
-          className="relative w-full aspect-square rounded-2xl bg-[#F7F7F8] dark:bg-card border border-border/80 overflow-hidden cursor-crosshair group select-none"
-        >
-          {!isMainImgLoaded && (
-            <Skeleton className="absolute inset-0 h-full w-full rounded-2xl" />
-          )}
-
-          {/* Main Product Image */}
-          <div className="w-full h-full p-6 flex items-center justify-center">
-            <img
-              src={currentImage}
-              alt={alt}
-              onLoad={() => setIsMainImgLoaded(true)}
-              onError={(e) => {
-                e.currentTarget.src = FALLBACK_IMAGE;
-                setIsMainImgLoaded(true);
-              }}
-              className="h-full w-full object-contain pointer-events-none"
-            />
-          </div>
-
-          {/* Semi-transparent Magnifier Lens Overlay on Hover */}
-          {isHovered && (
-            <div
-              className="absolute pointer-events-none border border-white/80 dark:border-white/40 bg-white/45 dark:bg-white/20 shadow-md backdrop-blur-[0.5px]"
-              style={{
-                left: `${lensPos.x}px`,
-                top: `${lensPos.y}px`,
-                width: `${lensPos.width}px`,
-                height: `${lensPos.height}px`,
-              }}
-            />
-          )}
-
-          {/* Fullscreen Expand Button Overlay */}
-          <Button
-            variant="secondary"
-            size="icon"
-            className="absolute top-3 right-3 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background z-10"
-            onClick={(e) => {
-              e.stopPropagation();
+      <div className="hidden md:block w-full relative z-30">
+        {/* Main Image Container & Zoom Preview Wrapper */}
+        <div className="relative w-full">
+          {/* Main Image Container with Lens */}
+          <div
+            ref={containerRef}
+            onMouseMove={handleMouseMove}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            onClick={() => {
               setPreviewIndex(activeIndex);
               setIsPreviewOpen(true);
             }}
-            aria-label="Open fullscreen gallery"
+            className="relative w-full aspect-square rounded-2xl bg-[#F7F7F8] dark:bg-card border border-border/80 overflow-hidden cursor-crosshair group select-none"
           >
-            <Maximize2 className="h-4 w-4 text-foreground" />
-          </Button>
+            {!isMainImgLoaded && (
+              <Skeleton className="absolute inset-0 h-full w-full rounded-2xl" />
+            )}
 
-          {/* Right-side High-Res Zoomed Preview Window (covers the right column area) */}
+            {/* Main Product Image */}
+            <div className="w-full h-full p-6 flex items-center justify-center">
+              <img
+                src={currentImage}
+                alt={alt}
+                onLoad={() => setIsMainImgLoaded(true)}
+                onError={(e) => {
+                  e.currentTarget.src = FALLBACK_IMAGE;
+                  setIsMainImgLoaded(true);
+                }}
+                className="h-full w-full object-contain pointer-events-none"
+              />
+            </div>
+
+            {/* Semi-transparent Magnifier Lens Overlay on Hover */}
+            {isHovered && (
+              <div
+                className="absolute pointer-events-none border border-white/80 dark:border-white/40 bg-white/45 dark:bg-white/20 shadow-md backdrop-blur-[0.5px]"
+                style={{
+                  left: `${lensPos.x}px`,
+                  top: `${lensPos.y}px`,
+                  width: `${lensPos.width}px`,
+                  height: `${lensPos.height}px`,
+                }}
+              />
+            )}
+
+            {/* Fullscreen Expand Button Overlay */}
+            <Button
+              variant="secondary"
+              size="icon"
+              className="absolute top-3 right-3 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background z-10"
+              onClick={(e) => {
+                e.stopPropagation();
+                setPreviewIndex(activeIndex);
+                setIsPreviewOpen(true);
+              }}
+              aria-label="Open fullscreen gallery"
+            >
+              <Maximize2 className="h-4 w-4 text-foreground" />
+            </Button>
+          </div>
+
+          {/* Right-side High-Res Zoomed Preview Window (covers the right column area without being clipped) */}
           {isHovered && (
             <div
               className="hidden md:block absolute left-[calc(100%+1.5rem)] lg:left-[calc(100%+3.5rem)] top-0 w-full aspect-square z-50 bg-[#F7F7F8] dark:bg-card rounded-2xl border border-border shadow-2xl overflow-hidden pointer-events-none"
@@ -204,7 +207,7 @@ const ProductImageGallery = ({ images = [], alt = 'Product Image' }) => {
               <div
                 className="w-full h-full bg-no-repeat bg-[#F7F7F8] dark:bg-card"
                 style={{
-                  backgroundImage: `url(${currentImage})`,
+                  backgroundImage: `url("${currentImage}")`,
                   backgroundPosition: `${zoomPercent.x}% ${zoomPercent.y}%`,
                   backgroundSize: '280%',
                 }}

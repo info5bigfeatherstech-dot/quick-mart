@@ -210,7 +210,7 @@ const ProductDetail = () => {
         {/* 2-Column Desktop Layout (stacked on mobile) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-14 items-start">
           {/* LEFT Column (~50%): Image Gallery */}
-          <div className="w-full">
+          <div className="w-full relative z-30">
             <ProductImageGallery images={galleryImages} alt={product.name} />
           </div>
 
