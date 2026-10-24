@@ -39,7 +39,7 @@ const CategoryGrid = ({
         <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2.5 sm:gap-3.5">
           {Array.from({ length: 20 }).map((_, i) => (
             <div key={i} className="flex flex-col items-center gap-2">
-              <Skeleton className="w-full aspect-square rounded-xl" />
+              <Skeleton className="w-full aspect-square rounded-2xl" />
               <Skeleton className="h-3 w-14" />
             </div>
           ))}
